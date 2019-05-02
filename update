@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# All purpose apt update script for VMs and physical machines
+# By Matt (MattLabs.net)
+
+# Colors
+B='\033[0;34m' # Blue
+R='\033[0;31m' # Red
+G='\033[0;32m' # Green
+NC='\033[0m' # No color
+
+# Check if user is root
+if ! [ $(id -u) = 0 ]; then
+   echo -e "${R}[ERROR] This script must be run as root!${NC}"
+   exit 1
+fi
+
+# Update sources
+echo -e "${B}Updating sources...${NC}"
+apt update
+echo -e "${B}Sources up to date.${NC}"
+
+# Upgrade packages
+echo -e "${B}Upgrading packages...${NC}"
+apt upgrade -y
+echo -e "${B}Packages upgraded.${NC}"
+
+# Remove unused packages
+echo -e "${B}Removing unused packages...${NC}"
+apt autoremove -y
+echo -e "${B}Unused packages removed.${NC}"
+
+# Check if system is VM
+echo -e "${B}Checking if system is virtualized...${NC}"
+if lshw -class system | grep -q "QEMU"; then
+    # Trim filesystem for SSD/VMs
+    echo -e "${B}System is virtualized, trimming filesystem...${NC}"
+    fstrim -av
+    echo -e "${B}Trimming filesystem complete.${NC}"
+else
+    echo -e "${B}System is physical, not trimming filesystem.${NC}"
+fi
+
+# System up to date
+echo -e "${G}Your system is up to date!${NC}"
+
+# Ask to reboot if needed
+if [ -f /var/run/reboot-required ]; then
+    while true; do
+        echo -e "${B}System reboot required!"
+        read -p "Reboot system to apply changes? [Yes/No] " yn
+        echo -e "${NC}"
+        case $yn in
+            [Yy]* ) echo -e "${B}Rebooting...${NC}"; shutdown -r now;;
+            [Nn]* ) echo -e "${B}Please reboot to apply changes.${NC}"; exit;;
+            * ) echo "${R}Please answer yes or no.${NC}";;
+        esac
+    done
+
+fi
